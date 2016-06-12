@@ -88,6 +88,7 @@ RM=rm
 MKDIR=mkdir
 GETENT=getent
 CP=cp
+GREP=grep
 
 LD_EXEC="$LD_LIB --library-path ${JUNEST_HOME}/usr/lib:${JUNEST_HOME}/lib"
 
@@ -117,6 +118,10 @@ function chown_cmd(){
 
 function mkdir_cmd(){
     $MKDIR $@ || $LD_EXEC ${JUNEST_HOME}/usr/bin/$MKDIR $@
+}
+
+function grep_cmd(){
+    $GREP $@ || $LD_EXEC ${JUNEST_HOME}/usr/bin/$GREP $@
 }
 
 function proot_cmd(){
@@ -424,6 +429,14 @@ function _build_passwd_and_group(){
     then
         warn "getent command failed or does not exist. Binding directly from /etc/passwd."
         cp_cmd /etc/passwd ${JUNEST_HOME}/etc/junest/passwd
+    fi
+    if ! grep_cmd -q `id -un`\\: ${JUNEST_HOME}/etc/junest/passwd
+    then
+        # getent not telling everything. Try to at least get the current user.
+        # Sometimes enumeration of users/groups is disabled/limited.
+        # (e.g.: Samba winbind can be disabled and is limited to at most 500 in code)
+        # Directly asking for information about a single user is fine though.
+        getent_cmd passwd `id -un` >> ${JUNEST_HOME}/etc/junest/passwd
     fi
     if ! getent_cmd group > ${JUNEST_HOME}/etc/junest/group
     then
